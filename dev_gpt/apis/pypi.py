@@ -35,8 +35,7 @@ def get_latest_package_version(package_name):
         if upload_time.year <= 2020 or (upload_time.year == 2021 and upload_time.month <= 9):  # knowledge cutoff 2021-09 (including september)
             valid_versions.append(v)
 
-    v = max(valid_versions, key=parse_version) if valid_versions else None
-    return v
+    return max(valid_versions, key=parse_version) if valid_versions else None
 
 def parse_version(version_string):
     """
@@ -59,9 +58,9 @@ def clean_requirements_txt(previous_microservice_path):
 
     updated_requirements = []
 
+    # replace comment at the end of the line
+    pattern = r'#.+'
     for line in requirements_txt.split('\n'):
-        # replace comment at the end of the line
-        pattern = r'#.+'
         line = re.sub(pattern, '', line)
         line = line.strip()
         if not line:

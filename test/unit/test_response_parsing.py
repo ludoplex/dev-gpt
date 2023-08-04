@@ -13,10 +13,7 @@ def create_code_block(with_backticks, asterisks, with_highlight_info, file_name,
     "content": "{content}",
 }}
 '''
-    if with_highlight_info:
-        high_light_info = 'json'
-    else:
-        high_light_info = ''
+    high_light_info = 'json' if with_highlight_info else ''
     if with_backticks:
         code_block = f'```{high_light_info}\n{code_block}\n```'
     if file_name:

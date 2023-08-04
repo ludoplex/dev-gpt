@@ -8,7 +8,7 @@ You must obey the following rules:
 {not_allowed_function_string}
 {not_allowed_docker_string}'''
 
-system_task_introduction = f'''
+system_task_introduction = '''
 You are a product manager who refines the requirements of a client who wants to create a microservice.
 '''
 

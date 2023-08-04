@@ -45,7 +45,4 @@ class Timer(metaclass=Singleton):
         time_diff = now - self.start_time
         minutes, seconds = divmod(time_diff.seconds, 60)
 
-        if minutes > 0:
-            return f"{minutes}m, {seconds}s"
-        else:
-            return f"{seconds}s"
+        return f"{minutes}m, {seconds}s" if minutes > 0 else f"{seconds}s"

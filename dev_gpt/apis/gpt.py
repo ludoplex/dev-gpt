@@ -73,7 +73,7 @@ class GPTSession:
     @staticmethod
     def is_gpt4_available():
         try:
-            for i in range(5):
+            for _ in range(5):
                 try:
                     openai.ChatCompletion.create(
                         model="gpt-4",
@@ -85,7 +85,6 @@ class GPTSession:
                     break
                 except (RateLimitError, openai.error.APIError, ConnectionError, InvalidChunkLength, ChunkedEncodingError, APIError, openai.error.Timeout):
                     sleep(1)
-                    continue
             return True
         except openai.error.InvalidRequestError:
             return False
@@ -160,7 +159,11 @@ class _GPTConversation:
 
         if os.environ['VERBOSE'].lower() == 'true':
             print()
-        self.cost_callback(sum([len(m.content) for m in self.messages]), len(response.content), self.print_costs)
+        self.cost_callback(
+            sum(len(m.content) for m in self.messages),
+            len(response.content),
+            self.print_costs,
+        )
         self.messages.append(response)
         return response.content
 
@@ -189,5 +192,4 @@ def ask_gpt(prompt_template: str, parser=identity_parser, **kwargs):
         print_costs=False
     )
     agent_response_raw = conversation.chat(prompt, role='user')
-    agent_response = parser(agent_response_raw)
-    return agent_response
+    return parser(agent_response_raw)

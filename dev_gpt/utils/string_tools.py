@@ -25,8 +25,8 @@ def print_colored(headline, text, color_code, end='\n'):
         color_code = '37'
     color_start = f"\033[{color_code}m"
     reset = "\033[0m"
-    bold_start = "\033[1m"
     if headline:
+        bold_start = "\033[1m"
         print(f"{bold_start}{color_start}{headline}{reset}")
     print(f"{color_start}{text}{reset}", end=end)
 
@@ -34,16 +34,13 @@ def print_colored(headline, text, color_code, end='\n'):
 def get_template_parameters(formatted_string):
     formatter = string.Formatter()
     parsed = formatter.parse(formatted_string)
-    parameters = []
-
-    for literal_text, field_name, format_spec, conversion in parsed:
-        if field_name is not None:
-            parameters.append(field_name)
-
-    return parameters
+    return [
+        field_name
+        for literal_text, field_name, format_spec, conversion in parsed
+        if field_name is not None
+    ]
 
 def clean_large_words(text):
     """Large words like base64 strings are returned by omitting the middle part of the word."""
     pattern = r'\b([a-zA-Z0-9+/]{20})([a-zA-Z0-9+/]{200,})([a-zA-Z0-9+/]{20})\b'
-    cleaned_text = re.sub(pattern, r'\1...\3', text)
-    return cleaned_text
+    return re.sub(pattern, r'\1...\3', text)

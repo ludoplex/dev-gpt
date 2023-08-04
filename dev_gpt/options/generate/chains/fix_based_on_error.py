@@ -5,7 +5,7 @@ import traceback
 def fix_based_on_error_chain(context_string, content_type, original_content, parser):
     from dev_gpt.apis.gpt import ask_gpt
     current_content = original_content
-    for i in range(3):
+    for _ in range(3):
         try:
             return parser(current_content)
         except Exception:

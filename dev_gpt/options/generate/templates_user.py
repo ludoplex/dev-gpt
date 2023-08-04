@@ -115,19 +115,16 @@ image_url_list = search_images('<search term>', top_n=10)
 linebreak = '\n'
 def template_generate_function_constructor(is_using_gpt_3_5_turbo, is_using_google_custom_search):
     return PromptTemplate.from_template(
-    general_guidelines_string + f'''
+        f'''{general_guidelines_string}
 
-Write a python function which receives as \
-input json dictionary string (that can be parsed with the python function json.loads) and \
-outputs a json dictionary string (that can be parsed with the python function json.loads). \
-The function is called 'func' and has the following signature:
+Write a python function which receives as \\n    #input json dictionary string (that can be parsed with the python function json.loads) and \\n    #outputs a json dictionary string (that can be parsed with the python function json.loads). \\n    #The function is called 'func' and has the following signature:
 def func(input_json_dict_string: str) -> str:
 The function must fulfill the following description: '{{microservice_description}}'.
 The function must pass the following test condition: '{{test_description}}'.
 For the implementation use the following package(s): '{{packages}}'.
 
 The code must start with the following imports:
-```{linebreak +'from .gpt_3_5_turbo import GPT_3_5_Turbo' if is_using_gpt_3_5_turbo else ""}{linebreak + 'from .google_custom_search import search_web, search_images' if is_using_google_custom_search else ""}
+```{f'{linebreak}from .gpt_3_5_turbo import GPT_3_5_Turbo' if is_using_gpt_3_5_turbo else ""}{f'{linebreak}from .google_custom_search import search_web, search_images' if is_using_google_custom_search else ""}
 import json
 import requests
 ```
@@ -164,7 +161,7 @@ The test must not set any environment variables which require a key.
 
 
 template_generate_requirements = PromptTemplate.from_template(
-    general_guidelines_string + f'''
+    f'''{general_guidelines_string}
 
 {{code_files_wrapped}}
     
@@ -180,7 +177,8 @@ All versions are fixed using ~=, ==, <, >, <=, >=. The package versions must not
 
 {template_code_wrapping_string} 
 Note: you must only output the requirements.txt file - no other file.
-''')
+'''
+)
 
 
 template_generate_apt_get_install = PromptTemplate.from_template(

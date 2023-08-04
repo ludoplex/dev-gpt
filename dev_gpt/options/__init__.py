@@ -27,8 +27,7 @@ def version_max_fn(path_list):
 def get_latest_version_path(microservice_path):
     executor_name_path = get_latest_folder(microservice_path)
     latest_approach_path = get_latest_folder(executor_name_path)
-    latest_version_path = get_latest_folder(latest_approach_path, max_fn=version_max_fn)
-    return latest_version_path
+    return get_latest_folder(latest_approach_path, max_fn=version_max_fn)
 
 def get_executor_name(microservice_path):
     latest_folder = get_latest_folder(microservice_path)

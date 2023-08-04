@@ -65,7 +65,9 @@ Description of the microservice:
             extension_name='Input Example',
         )
         used_apis_beside_tools = [
-            x for x in self.get_used_apis(microservice_description) if not any(t in x.lower() for t in ['gpt', 'search', 'google'])
+            x
+            for x in self.get_used_apis(microservice_description)
+            if all(t not in x.lower() for t in ['gpt', 'search', 'google'])
         ]
         for api in used_apis_beside_tools:
             microservice_description += self.user_input_extension_if_needed(
@@ -98,12 +100,11 @@ Description of the microservice:
             extension_name,
             post_transformation_fn=None
     ):
-        user_answer = get_user_input_if_needed(
+        if user_answer := get_user_input_if_needed(
             context=context,
             conditions=conditions,
             question_gen_prompt_part=question_gen,
-        )
-        if user_answer:
+        ):
             if post_transformation_fn:
                 user_answer = make_prompt_friendly(user_answer)
                 user_answer = post_transformation_fn(user_answer)

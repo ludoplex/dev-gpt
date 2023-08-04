@@ -3,7 +3,7 @@ from dev_gpt.utils.string_tools import clean_large_words
 
 
 def test_clean_color_codes():
-    color_start = f"\033[{31}m"
+    color_start = f"\033[31m"
     reset = "\033[0m"
     bold_start = "\033[1m"
     color = f"{bold_start}{color_start}test{reset}"

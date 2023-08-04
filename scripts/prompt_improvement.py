@@ -24,9 +24,7 @@ This microservice takes a tweet as input that contains passive aggressive langua
 
 
 
-value_explanations = [
-    'This is the value of {k}: "{v}"' for k, v in d.items()
-]
+value_explanations = ['This is the value of {k}: "{v}"' for _ in d]
 
 value_explanations_string = '\n'.join(value_explanations)
 

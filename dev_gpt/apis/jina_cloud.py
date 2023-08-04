@@ -68,7 +68,7 @@ def push_executor(dir_path):
         except Exception as e:
             if i == 2:
                 raise e
-            print(f'connection error - retrying in 5 seconds...')
+            print('connection error - retrying in 5 seconds...')
             time.sleep(5)
 
 def get_request_header() -> Dict:
@@ -78,13 +78,11 @@ def get_request_header() -> Dict:
     """
     metas, envs = get_full_version()
 
-    headers = {
+    return {
         **{f'jinameta-{k}': str(v) for k, v in metas.items()},
         **envs,
+        'Authorization': f'token {DEMO_TOKEN}',
     }
-    headers['Authorization'] = f'token {DEMO_TOKEN}'
-
-    return headers
 
 def _push_executor(dir_path):
     dir_path = Path(dir_path)
@@ -140,10 +138,10 @@ def is_executor_in_hub(microservice_name):
     url = f'https://api.hubble.jina.ai/v2/rpc/executor.list?search={microservice_name}&withAnonymous=true'
     resp = requests.get(url)
     executor_list = resp.json()['data']
-    for executor in executor_list:
-        if 'name' in executor and executor['name'] == microservice_name:
-            return True
-    return False
+    return any(
+        'name' in executor and executor['name'] == microservice_name
+        for executor in executor_list
+    )
 
 def get_user_name(token=None):
     client = hubble.Client(max_retries=None, jsonify=True, token=token)
@@ -168,13 +166,15 @@ def deploy_on_jcloud(executor_name, microservice_path):
             print(f'Could not deploy on Jina Cloud. Trying again in 5 seconds. Error: {e}')
             time.sleep(5)
         except SystemExit as e:
-            raise SystemExit(f'''
+            raise SystemExit(
+                '''
 Looks like you either ran out of credits or something went wrong in the generation and we didn't catch it.
 To check if you ran out of credits, please go to https://cloud.jina.ai.
 If you have credits left, please create an issue here https://github.com/jina-ai/dev-gpt/issues/new/choose
 and add details on the microservice you are trying to create.
 In that case, you can upgrade your Dev-GPT version, if not using latest, and try again.
-''') from e
+'''
+            ) from e
     if i == 2:
         raise Exception('''
 Could not deploy on Jina Cloud. 
@@ -217,10 +217,12 @@ c) try to run your microservice locally without docker. It is worth a try but mi
     full_flow_path = create_flow_yaml(microservice_version_path, executor_name, use_docker, False)
     flow = Flow.load_config(full_flow_path)
     with flow:
-        print(f'''
+        print(
+            '''
 Your microservice started locally.
 We now start the playground for you.
-''')
+'''
+        )
 
         app_path = os.path.join(microservice_version_path, 'gateway', "app.py")
 
@@ -235,10 +237,7 @@ We now start the playground for you.
 
 
 def create_flow_yaml(dest_folder, executor_name, use_docker, use_custom_gateway):
-    if use_docker:
-        prefix = 'jinaai+docker'
-    else:
-        prefix = 'jinaai'
+    prefix = 'jinaai+docker' if use_docker else 'jinaai'
     flow = f'''jtype: Flow
 with:
   port: 8080
@@ -300,7 +299,7 @@ def shorten_logs(relevant_lines):
     # filter version not found logs
     for index, line in enumerate(relevant_lines):
         if 'ERROR: Could not find a version that satisfies the requirement ' in line:
-            start_and_end = line[:150] + '...' + line[-150:]
+            start_and_end = f'{line[:150]}...{line[-150:]}'
             relevant_lines[index] = start_and_end
     return relevant_lines
 

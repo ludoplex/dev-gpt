@@ -59,8 +59,7 @@ class Generator:
     def extract_content_from_result(plain_text, file_name, match_single_block=False, can_contain_code_block=True):
         optional_line_break = '\n' if can_contain_code_block else ''  # the \n at the end makes sure that ``` within the generated code is not matched because it is not right before a line break
         pattern = fr"(?:\*|\*\*| ){file_name}\*?\*?\n```(?:\w+\n)?([\s\S]*?){optional_line_break}```"
-        matches = re.findall(pattern, plain_text, re.MULTILINE)
-        if matches:
+        if matches := re.findall(pattern, plain_text, re.MULTILINE):
             return matches[-1].strip()
         elif match_single_block:
             # Check for a single code block
@@ -81,10 +80,12 @@ metas:
             f.write(config_content)
 
     def files_to_string(self, file_name_to_content, restrict_keys=None):
-        all_microservice_files_string = ''
-        for file_name, tag in FILE_AND_TAG_PAIRS:
-            if file_name in file_name_to_content and (not restrict_keys or file_name in restrict_keys):
-                all_microservice_files_string += f'**{file_name}**\n```{tag}\n{file_name_to_content[file_name]}\n```\n\n'
+        all_microservice_files_string = ''.join(
+            f'**{file_name}**\n```{tag}\n{file_name_to_content[file_name]}\n```\n\n'
+            for file_name, tag in FILE_AND_TAG_PAIRS
+            if file_name in file_name_to_content
+            and (not restrict_keys or file_name in restrict_keys)
+        )
         return all_microservice_files_string.strip()
 
     def get_default_parse_result_fn(self, files_names: List[str]):
@@ -296,8 +297,20 @@ metas:
         content_parsed = self.extract_content_from_result(content_raw, 'requirements.txt', match_single_block=True)
 
         lines = content_parsed.split('\n')
-        lines = [line for line in lines if
-                 not any([pkg in line for pkg in ['jina', 'docarray', 'openai', 'pytest', 'gpt_3_5_turbo']])]
+        lines = [
+            line
+            for line in lines
+            if all(
+                pkg not in line
+                for pkg in [
+                    'jina',
+                    'docarray',
+                    'openai',
+                    'pytest',
+                    'gpt_3_5_turbo',
+                ]
+            )
+        ]
         content_modified = f'''jina==3.15.1.dev14
 docarray==0.21.0
 openai==0.27.5
@@ -328,7 +341,9 @@ pytest
         )
         playground_content = self.extract_content_from_result(playground_content_raw, 'app.py', match_single_block=True)
         if playground_content == '':
-            content_raw = conversation.chat(f'You must add the app.py code. You most not output any other code')
+            content_raw = conversation.chat(
+                'You must add the app.py code. You most not output any other code'
+            )
             playground_content = self.extract_content_from_result(
                 content_raw, 'app.py', match_single_block=True
             )
@@ -368,8 +383,7 @@ pytest
             print(f'{Timer().get_time_since_start()} - Build executor...')
             log_hubble = push_executor(self.cur_microservice_path)
             print(f'{Timer().get_time_since_start()} - Analyze logs...')
-            error = process_error_message(log_hubble)
-            if error:
+            if error := process_error_message(log_hubble):
                 print('Handling error...')
                 if not self_healing:
                     print(error)
@@ -383,14 +397,11 @@ pytest
                 self.do_debug_iteration(error)
                 if i == MAX_DEBUGGING_ITERATIONS - 1:
                     raise self.MaxDebugTimeReachedException('Could not debug the microservice.')
+            elif is_executor_in_hub(self.microservice_name):
+                print('Successfully build microservice.')
+                break
             else:
-                # at the moment, there can be cases where no error log is extracted but the executor is still not published
-                # it leads to problems later on when someone tries a run or deployment
-                if is_executor_in_hub(self.microservice_name):
-                    print('Successfully build microservice.')
-                    break
-                else:
-                    raise Exception(f'{self.microservice_name} not in hub. Hubble logs: {log_hubble}')
+                raise Exception(f'{self.microservice_name} not in hub. Hubble logs: {log_hubble}')
 
     def do_debug_iteration(self, error):
         file_name_to_content = get_all_microservice_files_with_content(self.previous_microservice_path)
@@ -403,8 +414,9 @@ pytest
             key in ['requirements.txt', 'Dockerfile']
         })
 
-        is_apt_get_dependency_issue = self.is_dependency_issue(summarized_error, dock_req_string, 'apt-get')
-        if is_apt_get_dependency_issue:
+        if is_apt_get_dependency_issue := self.is_dependency_issue(
+            summarized_error, dock_req_string, 'apt-get'
+        ):
             self.generate_and_persist_file(
                 section_title='Debugging apt-get dependency issue',
                 template=template_solve_apt_get_dependency_issue,
@@ -414,36 +426,36 @@ pytest
                 all_files_string=dock_req_string,
             )
             print('Dockerfile updated')
+        elif is_pip_dependency_issue := self.is_dependency_issue(
+            summarized_error, dock_req_string, 'PIP'
+        ):
+            self.generate_and_persist_file(
+                section_title='Debugging pip dependency issue',
+                template=template_solve_pip_dependency_issue,
+                file_name_s=[REQUIREMENTS_FILE_NAME],
+                summarized_error=summarized_error,
+                all_files_string=dock_req_string,
+            )
         else:
-            is_pip_dependency_issue = self.is_dependency_issue(summarized_error, dock_req_string, 'PIP')
-            if is_pip_dependency_issue:
-                self.generate_and_persist_file(
-                    section_title='Debugging pip dependency issue',
-                    template=template_solve_pip_dependency_issue,
-                    file_name_s=[REQUIREMENTS_FILE_NAME],
-                    summarized_error=summarized_error,
-                    all_files_string=dock_req_string,
-                )
-            else:
-                all_files_string = self.files_to_string(
-                    {key: val for key, val in file_name_to_content.items() if key != EXECUTOR_FILE_NAME}
-                )
+            all_files_string = self.files_to_string(
+                {key: val for key, val in file_name_to_content.items() if key != EXECUTOR_FILE_NAME}
+            )
 
-                suggested_solution = self.generate_solution_suggestion(summarized_error, all_files_string)
+            suggested_solution = self.generate_solution_suggestion(summarized_error, all_files_string)
 
-                self.generate_and_persist_file(
-                    section_title='Implementing suggestion solution for code issue',
-                    template=template_implement_solution_code_issue,
-                    file_name_s=[IMPLEMENTATION_FILE_NAME, TEST_EXECUTOR_FILE_NAME, REQUIREMENTS_FILE_NAME],
-                    summarized_error=summarized_error,
-                    task_description=self.microservice_specification.task,
-                    test_description=self.microservice_specification.test,
-                    all_files_string=all_files_string,
-                    suggested_solution=suggested_solution,
-                )
+            self.generate_and_persist_file(
+                section_title='Implementing suggestion solution for code issue',
+                template=template_implement_solution_code_issue,
+                file_name_s=[IMPLEMENTATION_FILE_NAME, TEST_EXECUTOR_FILE_NAME, REQUIREMENTS_FILE_NAME],
+                summarized_error=summarized_error,
+                task_description=self.microservice_specification.task,
+                test_description=self.microservice_specification.test,
+                all_files_string=all_files_string,
+                suggested_solution=suggested_solution,
+            )
 
-                self.previous_errors.append(summarized_error)
-                self.previous_solutions.append(suggested_solution)
+            self.previous_errors.append(summarized_error)
+            self.previous_solutions.append(suggested_solution)
 
     def generate_solution_suggestion(self, summarized_error, all_files_string):
         suggested_solutions = ask_gpt(
@@ -456,33 +468,41 @@ pytest
         )
 
         if len(self.previous_errors) > 0:
-            was_error_seen_before = json.loads(
-                self.generate_and_persist_file(
-                    section_title='Check if error was seen before',
-                    template=template_was_error_seen_before,
-                    file_name_s=['was_error_seen_before.json'],
-                    summarized_error=summarized_error,
-                    previous_errors='- "' + f'"{os.linesep}- "'.join(self.previous_errors) + '"',
-                    use_custom_system_message=False,
-                    response_format_example=response_format_was_error_seen_before,
-                )['was_error_seen_before.json']
-            )['was_error_seen_before'].lower() == 'yes'
+            was_error_seen_before = (
+                json.loads(
+                    self.generate_and_persist_file(
+                        section_title='Check if error was seen before',
+                        template=template_was_error_seen_before,
+                        file_name_s=['was_error_seen_before.json'],
+                        summarized_error=summarized_error,
+                        previous_errors=f"""- "{f'"{os.linesep}- "'.join(self.previous_errors)}\"""",
+                        use_custom_system_message=False,
+                        response_format_example=response_format_was_error_seen_before,
+                    )['was_error_seen_before.json']
+                )['was_error_seen_before'].lower()
+                == 'yes'
+            )
 
             suggested_solution = None
             if was_error_seen_before:
                 for _num_solution in range(1, len(suggested_solutions) + 1):
                     _suggested_solution = suggested_solutions[str(_num_solution)]
-                    was_solution_tried_before = json.loads(
-                        self.generate_and_persist_file(
-                            section_title='Check if solution was tried before',
-                            template=template_was_solution_tried_before,
-                            file_name_s=['will_lead_to_different_actions.json'],
-                            tried_solutions='- "' + f'"{os.linesep}- "'.join(self.previous_solutions) + '"',
-                            suggested_solution=_suggested_solution,
-                            use_custom_system_message=False,
-                            response_format_example=response_format_was_solution_tried_before,
-                        )['will_lead_to_different_actions.json']
-                    )['will_lead_to_different_actions'].lower() == 'no'
+                    was_solution_tried_before = (
+                        json.loads(
+                            self.generate_and_persist_file(
+                                section_title='Check if solution was tried before',
+                                template=template_was_solution_tried_before,
+                                file_name_s=[
+                                    'will_lead_to_different_actions.json'
+                                ],
+                                tried_solutions=f"""- "{f'"{os.linesep}- "'.join(self.previous_solutions)}\"""",
+                                suggested_solution=_suggested_solution,
+                                use_custom_system_message=False,
+                                response_format_example=response_format_was_solution_tried_before,
+                            )['will_lead_to_different_actions.json']
+                        )['will_lead_to_different_actions'].lower()
+                        == 'no'
+                    )
                     if not was_solution_tried_before:
                         suggested_solution = _suggested_solution
                         break
@@ -501,11 +521,14 @@ pytest
 
     def is_dependency_issue(self, summarized_error, dock_req_string: str, package_manager: str):
         # a few heuristics to quickly jump ahead
-        if any([error_message in summarized_error for error_message in
-                ['AttributeError', 'NameError', 'AssertionError']]):
+        if any(
+            error_message in summarized_error
+            for error_message in ['AttributeError', 'NameError', 'AssertionError']
+        ):
             return False
         if package_manager.lower() == 'pip' and any(
-                [em in summarized_error for em in ['ModuleNotFoundError', 'ImportError']]):
+            em in summarized_error for em in ['ModuleNotFoundError', 'ImportError']
+        ):
             return True
 
         print_colored('', f'Is it a {package_manager} dependency issue?', 'blue')
@@ -525,8 +548,9 @@ pytest
     def get_possible_packages(self):
         print_colored('', '\n\n############# What packages to use? #############', 'blue')
         packages_json = ask_gpt(template_generate_possible_packages, self_healing_json_parser, description=self.microservice_specification.task)
-        packages_list = self.process_packages_json_string(packages_json, self.microservice_specification.task)
-        return packages_list
+        return self.process_packages_json_string(
+            packages_json, self.microservice_specification.task
+        )
 
     @staticmethod
     def process_packages_json_string(packages_json, task_description):
@@ -559,7 +583,7 @@ pytest
                                   'red')
                     return -1
                 continue
-            command = 'dev-gpt' if any(['main.py' in arg for arg in sys.argv]) else 'dev-gpt'
+            command = 'dev-gpt' if any('main.py' in arg for arg in sys.argv) else 'dev-gpt'
             print(f'''
 You can now run or deploy your microservice:
 {command} run --path {self.microservice_root_path}
@@ -570,40 +594,36 @@ You can now run or deploy your microservice:
 
     def summarize_error(self, error):
         conversation = self.gpt_session.get_conversation()
-        error_summary = conversation.chat(template_summarize_error.format(error=error))
-        return error_summary
+        return conversation.chat(template_summarize_error.format(error=error))
 
 
     @staticmethod
     def replace_with_tool_if_possible(pkg):
         if pkg in LANGUAGE_PACKAGES:
             return 'gpt_3_5_turbo'
-        if pkg in SEARCH_PACKAGES:
-            return 'google_custom_search'
-        return pkg
+        return 'google_custom_search' if pkg in SEARCH_PACKAGES else pkg
 
     @staticmethod
     def filter_packages_list(packages_list):
         # filter out complete package lists
         packages_list = [
-            packages for packages in packages_list if all([
-                pkg not in BLACKLISTED_PACKAGES  # no package is allowed to be blacklisted
-                for pkg in packages
-            ])
+            packages
+            for packages in packages_list
+            if all(pkg not in BLACKLISTED_PACKAGES for pkg in packages)
         ]
-        # filter out single packages
-        packages_list = [
+        return [
             [
-                package for package in packages
+                package
+                for package in packages
                 if (package not in UNNECESSARY_PACKAGES)
-                   and (  # all packages must be on pypi or it is gpt_3_5_turbo
-                           is_package_on_pypi(package)
-                           or package == 'gpt_3_5_turbo'
-                           or package == 'google_custom_search'
-                   )
-            ] for packages in packages_list
+                and (  # all packages must be on pypi or it is gpt_3_5_turbo
+                    is_package_on_pypi(package)
+                    or package == 'gpt_3_5_turbo'
+                    or package == 'google_custom_search'
+                )
+            ]
+            for packages in packages_list
         ]
-        return packages_list
 
     @staticmethod
     def remove_duplicates_from_packages_list(packages_list):

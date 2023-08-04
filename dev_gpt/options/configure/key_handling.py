@@ -17,9 +17,7 @@ def get_shell():
 
     shell_names = ["bash", "zsh", "sh", "fish", "csh", "tcsh", "ksh", "dash"]
 
-    # Check the SHELL environment variable first
-    shell_env = os.environ.get('SHELL')
-    if shell_env:
+    if shell_env := os.environ.get('SHELL'):
         shell_name = os.path.basename(shell_env)
         if shell_name in shell_names:
             return shell_name

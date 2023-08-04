@@ -106,7 +106,7 @@ def test_generation_level_3(microservice_dir, mock_input_sequence):
     """
     os.environ['VERBOSE'] = 'true'
     generator = Generator(
-        f'''The input is a stock symbol (e.g., AAPL for Apple Inc.). 
+        '''The input is a stock symbol (e.g., AAPL for Apple Inc.). 
 1. Fetch stock data (open, high, low, close, volume) for the past 30 days using a financial data API Yahoo Finance.
 2. Calculate the average closing price over the 30 days.
 3. Generate a brief summary of the company's stock performance over the past 30 days, including the average closing price and the company name.
@@ -115,7 +115,6 @@ Example input: 'AAPL'
 ''',
         str(microservice_dir),
         'gpt-3.5-turbo',
-        # self_healing=False,
     )
     assert generator.generate() == 0
 
